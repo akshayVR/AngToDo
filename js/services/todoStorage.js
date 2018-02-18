@@ -21,7 +21,50 @@ angular.module('todomvc')
 			});
 	})
 
-	.factory('api', function ($resource) {
+	// Could be done with session storage, infact it would have best done with session storage
+	.factory('appLocalSettings', function ($q) {
+		'use strict';
+
+		var STORAGE_ID = 'todos-angularjs-settings';
+
+		var store = {
+			settings: {
+				new: null
+			},
+
+			_getFromLocalStorage: function () {
+				return JSON.parse(localStorage.getItem(STORAGE_ID) || '[]');
+			},
+
+			_saveToLocalStorage: function (settings) {
+				localStorage.setItem(STORAGE_ID, JSON.stringify(settings));
+			},
+
+			getSettings: function () {
+				var deferred = $q.defer();
+
+				angular.copy(store._getFromLocalStorage(), store.settings);
+				deferred.resolve(store.settings);
+
+				return deferred.promise;
+			},
+
+			updateSettings: function (settings) {
+				var deferred = $q.defer();
+
+				angular.copy(settings, store.settings);
+
+				store._saveToLocalStorage(store.settings);
+				deferred.resolve(store.settings);
+
+				return deferred.promise;
+			},
+		};
+
+		return store;
+	})
+
+	.factory('api', ['$resource', 'appLocalSettings', function ($resource, appLocalSettings) {
 		'use strict';
 
 		var store = {
@@ -71,6 +114,7 @@ angular.module('todomvc')
 				return store.api.save(todo,
 					function success(resp) {
 						todo.id = resp.id;
+						appLocalSettings.updateSettings({new: todo.id}); // Setting the new item as new item
 						store.todos.push(todo);
 					}, function error() {
 						angular.copy(originalTodos, store.todos);
@@ -85,9 +129,9 @@ angular.module('todomvc')
 		};
 
 		return store;
-	})
+	}])
 
-	.factory('localStorage', function ($q) {
+	.factory('localStorage', ['$q', 'uuid', 'appLocalSettings', function ($q, uuid, appLocalSettings) {
 		'use strict';
 
 		var STORAGE_ID = 'todos-angularjs';
@@ -141,7 +185,11 @@ angular.module('todomvc')
 			insert: function (todo) {
 				var deferred = $q.defer();
 
+				todo.id = uuid.v4(); // Adding id to mimic api based flow, aswell as to identify the item in future flows
+
 				store.todos.push(todo);
+
+				appLocalSettings.updateSettings({new: todo.id}); // Setting the new item as new item
 
 				store._saveToLocalStorage(store.todos);
 				deferred.resolve(store.todos);
@@ -162,4 +210,4 @@ angular.module('todomvc')
 		};
 
 		return store;
-	});
+	}]);

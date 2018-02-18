@@ -6,17 +6,33 @@
  * - exposes the model to the template and provides event handlers
  */
 angular.module('todomvc')
-	.controller('TodoCtrl', function TodoCtrl($scope, $routeParams, $filter, store) {
+	.controller('TodoCtrl', ['$scope', '$routeParams', '$filter', 'store', 'appLocalSettings', 'uuid', function TodoCtrl($scope, $routeParams, $filter, store, appLocalSettings, uuid) {
 		'use strict';
 
 		var todos = $scope.todos = store.todos;
 
 		$scope.newTodo = '';
 		$scope.editedTodo = null;
+		$scope.recentTodo = null;
+		$scope.completedTasks = {};
 
 		$scope.$watch('todos', function () {
-			$scope.remainingCount = $filter('filter')(todos, { completed: false }).length;
-			$scope.completedCount = todos.length - $scope.remainingCount;
+			var completedTasks = $filter('filter')(todos, { completed: true }); // Filtering the tasks to identify the completed tasks
+
+			// Sorting them to identify the order in which they were completed
+			completedTasks = completedTasks.sort(function (a, b) {
+				return b.completedOn - a.completedOn;
+			});
+
+			// Creating an object reference to ientify the ranking of the completed tasks based on their completion date
+			// This is used in the view to highlight the latest completed tasks
+			$scope.completedTasks = {};
+			for (var i = 0, len = completedTasks.length; i < len; i++) {
+				$scope.completedTasks[completedTasks[i].id] = i;
+			}
+
+			$scope.completedCount =  completedTasks.length;
+			$scope.remainingCount = todos.length - $scope.completedCount;
 			$scope.allChecked = !$scope.remainingCount;
 		}, true);
 
@@ -31,7 +47,8 @@ angular.module('todomvc')
 		$scope.addTodo = function () {
 			var newTodo = {
 				title: $scope.newTodo.trim(),
-				completed: false
+				completed: false,
+				date: Date.now() // Adding date to identify when an item was created
 			};
 
 			if (!newTodo.title) {
@@ -40,11 +57,17 @@ angular.module('todomvc')
 
 			$scope.saving = true;
 			store.insert(newTodo)
-				.then(function success() {
+				.then(function success(todos) {
 					$scope.newTodo = '';
+					$scope.recentTodo = todos[todos.length - 1].id; // Used to identify the recently added item. USed for the animation
 				})
 				.finally(function () {
 					$scope.saving = false;
+					// Removes the recentTodo from the localstorage to prevent repeated highlights
+					setTimeout(function () {
+						$scope.recentTodo = null;
+						appLocalSettings.updateSettings({new: null});
+					}, 3000);
 				});
 		};
 
@@ -105,6 +128,14 @@ angular.module('todomvc')
 			if (angular.isDefined(completed)) {
 				todo.completed = completed;
 			}
+
+			// Adding completed date to track completion
+			if (todo.completed === true) {
+				todo.completedOn = Date.now();
+			} else {
+				todo.completedOn = null;
+			}
+
 			store.put(todo, todos.indexOf(todo))
 				.then(function success() {}, function error() {
 					todo.completed = !todo.completed;
@@ -122,4 +153,4 @@ angular.module('todomvc')
 				}
 			});
 		};
-	});
+	}]);
