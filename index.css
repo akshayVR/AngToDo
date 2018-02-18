@@ -1,0 +1,38 @@
+.recent {
+  color: black;
+  animation: coloranimation 10s linear;
+}
+
+@keyframes coloranimation {
+    0%   {color:red;}
+    100%  {color:black;}
+}
+
+#todo-list li.completed.completed-0 label {
+  color: green;
+}
+
+#todo-list li.completed.completed-1 label {
+  color: magenta;
+}
+
+#todo-list li.completed.completed-2 label {
+  color: yellow;
+}
+
+#todo-list li .todo-item {
+  display: flex;
+  flex-direction: column;
+}
+
+#todo-list li.completed label {
+  text-decoration: none;
+}
+
+li.completed .todo-title {
+  text-decoration: line-through;
+}
+
+.todo-metadata {
+  font-size: 12px;
+}
